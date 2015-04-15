@@ -9,11 +9,38 @@ import Prop._
 
 abstract class QuickCheckHeap extends Properties("Heap") with IntHeap {
 
-  property("min1") = forAll { a: Int =>
-    val h = insert(a, empty)
-    findMin(h) == a
+  property("min") = forAll { (a: Int, b: Int, c: Int) =>
+  	val sorted = List(a, b, c).sorted
+    
+    val x = insert(sorted(0), empty)
+    val y = insert(sorted(1), x)
+    val z = insert(sorted(2), y)
+    
+    findMin(z) == sorted(0)
   }
-
+  
+ property("delete") = forAll { (a: Int, b: Int, c: Int) =>
+  	val sorted = List(a, b, c).sorted
+    
+    val x = insert(sorted(0), empty)
+    val y = insert(sorted(1), x)
+    val z = insert(sorted(2), y)
+    val w = deleteMin(z)
+    
+    findMin(w) == sorted(1)
+  }
+  
+  property("meld") = forAll { (a: Int, b: Int) =>
+    val min = Math.min(a, b)
+    val max = Math.max(a, b)
+    
+    val x = insert(min, empty)
+    val y = insert(max, empty)
+    val z = meld(y, x)
+    
+    findMin(z) == min
+  }
+  
   lazy val genHeap: Gen[H] = ???
 
   implicit lazy val arbHeap: Arbitrary[H] = Arbitrary(genHeap)
