@@ -51,4 +51,47 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
     assert(resultRed2() == "red")
   }
 
+  /** Polynomial */
+  
+  test("computeDelta with a constant delta") {
+    val deltaSignal = Polynomial.computeDelta(Var(1), Var(3), Var(2))
+    assert(deltaSignal() == 1.0)
+    
+    val deltaSignal2 = Polynomial.computeDelta(Var(1), Var(5), Var(1))
+    assert(deltaSignal2() == 21.0)
+    
+    val deltaSignal3 = Polynomial.computeDelta(Var(1), Var(0), Var(1))
+    assert(deltaSignal3() == -4.0)
+  }
+  
+  test("computeSolutions with 2 roots") {
+    val a = Var(1.0)
+    val b = Var(3.0)
+    val c = Var(-4.0)
+    val delta = Polynomial.computeDelta(a, b, c)
+    val compute = Polynomial.computeSolutions(a, b, c, delta)
+    
+    assert(compute() == Set(1.0, -4.0))
+  }
+
+  test("computeSolutions with 1 root") {
+    val a = Var(1.0)
+    val b = Var(2.0)
+    val c = Var(1.0)
+    val delta = Polynomial.computeDelta(a, b, c)
+    val compute = Polynomial.computeSolutions(a, b, c, delta)
+    
+    assert(compute() == Set(-1.0))
+  }
+  
+  test("computeSolutions with no roots") {
+    val a = Var(1.0)
+    val b = Var(0.0)
+    val c = Var(1.0)
+    val delta = Polynomial.computeDelta(a, b, c)
+    val compute = Polynomial.computeSolutions(a, b, c, delta)
+    
+    assert(compute() == Set())
+  }
+  
 }
