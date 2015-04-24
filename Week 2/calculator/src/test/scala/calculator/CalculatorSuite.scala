@@ -94,4 +94,80 @@ class CalculatorSuite extends FunSuite with ShouldMatchers {
     assert(compute() == Set())
   }
   
+  /** Calculator */
+  
+  test("eval literal") {
+    val a = Literal(5.0)
+    assert(Calculator.eval(a, Map()) == 5.0)
+    
+    val b = Literal(3.5)
+    assert(Calculator.eval(b, Map()) == 3.5)
+    
+    val c = Literal(-0.4)
+    assert(Calculator.eval(c, Map()) == -0.4)
+  }
+  
+  test("eval simple operations") {
+    val a = Literal(10.0)
+    val b = Literal(4.0)
+    
+    val plus = Plus(a, b)
+    val minus = Minus(a, b)
+    val times = Times(a, b)
+    val divide = Divide(a, b)
+    
+    assert(Calculator.eval(plus, Map()) == 14.0)
+    assert(Calculator.eval(minus, Map()) == 6.0)
+    assert(Calculator.eval(times, Map()) == 40.0)
+    assert(Calculator.eval(divide, Map()) == 2.5)
+  }
+  
+  test("eval div by 0 is NaN") {
+    val a = Literal(1.0)
+    val b = Literal(0.0)
+    
+    val divide = Divide(a, b)
+    
+    assert(Calculator.eval(divide, Map()).equals(Double.NaN))
+  }
+  
+  test("eval simple ref") {
+    val a = Literal(10.0)
+    val ref = Ref("a")
+    
+    assert(Calculator.eval(ref, Map("a" -> Var(a))) == 10.0)
+  }
+  
+  test("eval missing ref") {
+    val a = Literal(10.0)
+    val ref = Ref("b")
+    
+    // (NaN == NaN) is false, use .equals() instead
+    assert(Calculator.eval(ref, Map("a" -> Var(a))).equals(Double.NaN))
+  }
+  
+  test("computeValues") {
+    val a = Literal(10.0)
+    val b = Ref("a")
+    
+    val map = Map[String, Signal[Expr]]("a" -> Var(a), "b" -> Var(b))
+    
+    val expectedValues = Map[String, Signal[Double]]("a" -> Var(10.0), "b" -> Var(10.0))
+    val observedValues = Calculator.computeValues(map);
+    
+    assert(expectedValues.get("a").get() == observedValues.get("a").get())
+    assert(expectedValues.get("b").get() == observedValues.get("b").get())
+  }
+  
+  test("computeValues with cyclical references") {
+    val a = Times(Literal(2.0), Ref("b"))
+    val b = Plus(Ref("a"), Literal(1.0))
+    val map = Map[String, Signal[Expr]]("a" -> Var(a), "b" -> Var(b))
+    
+    val observedValues = Calculator.computeValues(map)
+    
+    assert(observedValues.get("a").get().equals(Double.NaN))
+    assert(observedValues.get("b").get().equals(Double.NaN))
+  }
+  
 }
