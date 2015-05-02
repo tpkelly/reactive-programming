@@ -31,7 +31,95 @@ class NodeScalaSuite extends FunSuite {
     }
   }
 
+  test("A future of any should be completed") {
+    val any = Future.any(List(Future.never[Int], Future.always(3)))
+    
+    assert(Await.result(any, 0 nanos) == 3)
+  }
   
+  test("An empty list of any futures should not be completed") {
+    val anyNever = Future.any(List())
+    
+    try {
+      Await.result(anyNever, 1 second)
+      assert(false)
+    } catch {
+      case t: TimeoutException => // ok!
+    }
+  }
+  
+  test("A list of all futures should return all completed futures") {
+    val all = Future.all(List(Future.always(3), Future.always(5)))
+    assert(Await.result(all, 1 second) == List(3, 5))
+  }
+  
+  test("A list of all never futures should not be completed") {
+    val allNever = Future.all(List(Future.never[Int], Future.never[Int]))
+    
+    try {
+      Await.result(allNever, 1 second)
+      assert(false)
+    } catch {
+      case t: TimeoutException => // ok!
+    }
+  }
+  
+  test("An empty list of all futures should not be completed") {
+    val all = Future.all(List())
+    assert(Await.result(all, 1 second) == List())
+  }
+  
+  test("Delay does not execute immediately") {
+    val delay = Future.delay(Duration("0.5 seconds"))
+    
+    try {
+      Await.result(delay, 0 nanos)
+      assert(false)
+    } catch {
+      case t: TimeoutException => // ok!
+    }
+  }
+  
+  test("Delay will execute eventually") {
+    val delay = Future.delay(Duration("0.5 seconds"))
+    Await.result(delay, 1 second)
+  }
+  
+  test("Now on unexecuted value is NoSuchElementException") {
+    val never = Future.never[Int]
+    Thread.sleep(100)
+    
+    try {
+      never.now
+      assert(false)
+    } catch {
+      case t: NoSuchElementException => // ok!
+    }
+  }
+  
+  test("Now on executed value returns that value") {
+    val always = Future.always(400)
+    Thread.sleep(100)
+    assert(always.now == 400)
+  }
+  
+  test("continueWith transforms value from one Future type to another") {
+    val cont = (a:Future[Int]) => a.now.toString
+    val original = Future.always(400)
+    val transformed = original.continueWith[String](cont)
+    
+    Thread.sleep(100)
+    assert(transformed.now == "400")
+  }
+  
+  test("continue transforms value from result of one Future type to another") {
+    val cont = (a:Try[Int]) => a.get.toString
+    val original = Future.always(400)
+    val transformed = original.continue[String](cont)
+    
+    Thread.sleep(100)
+    assert(transformed.now == "400")
+  }
   
   class DummyExchange(val request: Request) extends Exchange {
     @volatile var response = ""
@@ -91,6 +179,7 @@ class NodeScalaSuite extends FunSuite {
       l.emit(req)
     }
   }
+/*
   test("Server should serve requests") {
     val dummy = new DummyServer(8191)
     val dummySubscription = dummy.start("/testDir") {
@@ -113,7 +202,7 @@ class NodeScalaSuite extends FunSuite {
 
     dummySubscription.unsubscribe()
   }
-
+  */
 }
 
 
