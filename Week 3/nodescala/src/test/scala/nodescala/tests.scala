@@ -32,9 +32,9 @@ class NodeScalaSuite extends FunSuite {
   }
 
   test("A future of any should be completed") {
-    val any = Future.any(List(Future.never[Int], Future.always(3)))
+    val any = Future.any(List(Future.never[Int], Future.always(3), Future.delay(5 seconds)))
     
-    assert(Await.result(any, 0 nanos) == 3)
+    assert(Await.result(any, 0.5 seconds) == 3)
   }
   
   test("An empty list of any futures should not be completed") {
@@ -70,7 +70,7 @@ class NodeScalaSuite extends FunSuite {
   }
   
   test("Delay does not execute immediately") {
-    val delay = Future.delay(Duration("0.5 seconds"))
+    val delay = Future.delay(0.5 seconds)
     
     try {
       Await.result(delay, 0 nanos)
@@ -81,7 +81,7 @@ class NodeScalaSuite extends FunSuite {
   }
   
   test("Delay will execute eventually") {
-    val delay = Future.delay(Duration("0.5 seconds"))
+    val delay = Future.delay(0.5 seconds)
     Await.result(delay, 1 second)
   }
   

@@ -30,8 +30,11 @@ package object nodescala {
      *  The values in the list are in the same order as corresponding futures `fs`.
      *  If any of the futures `fs` fails, the resulting future also fails.
      */
-    def all[T](fs: List[Future[T]]): Future[List[T]] =
-      fs.foldRight(Future(Nil : List[T]))((a, b) => for {x <- a; xs <- b} yield (x::xs))
+    def all[T](fs: List[Future[T]]): Future[List[T]] = {
+      val p = Promise[List[T]]
+      p.success(List())
+      fs.foldRight(p.future)((a, b) => for {x <- a; xs <- b} yield (x::xs))
+    }
         
     /** Given a list of futures `fs`, returns the future holding the value of the future from `fs` that completed first.
      *  If the first completing future in `fs` fails, then the result is failed as well.
@@ -44,19 +47,13 @@ package object nodescala {
      */
     def any[T](fs: List[Future[T]]): Future[T] = {
       val p = Promise[T]()
-      
-      fs match {
-        case x::xs => p.completeWith(x)
-        			   .completeWith(Future.any[T](xs))
-        case _ => Future.never[T]
-      }
-      
+      fs.foreach(a => a.onComplete(value => p.tryComplete(value)))
       p.future
     }
 
     /** Returns a future with a unit value that is completed after time `t`.
      */
-    def delay(t: Duration): Future[Unit] = blocking { Future(Thread.sleep(t.length)) }
+    def delay(t: Duration): Future[Unit] = async { Try(Await.result(never, t)) getOrElse (0) }
 
     /** Completes this future with user input.
      */
@@ -68,8 +65,11 @@ package object nodescala {
 
     /** Creates a cancellable context for an execution and runs it.
      */
-    def run()(f: CancellationToken => Future[Unit]): Subscription =
-      CancellationTokenSource.apply()
+    def run()(f: CancellationToken => Future[Unit]): Subscription = {
+      val subscription = CancellationTokenSource.apply()
+      f(subscription.cancellationToken)
+      subscription
+    }
   }
 
   /** Adds extension methods to future objects.
@@ -84,8 +84,8 @@ package object nodescala {
      *  However, it is also non-deterministic -- it may throw or return a value
      *  depending on the current state of the `Future`.
      */
-    def now: T = f.value match {
-      case Some(Success(t)) => t
+    def now: T = Try(Await.result(f, 0 nanos)) match {
+      case Success(t) => t
       case _ => throw new NoSuchElementException
     }
     
@@ -95,7 +95,11 @@ package object nodescala {
      *  The function `cont` is called only after the current future completes.
      *  The resulting future contains a value returned by `cont`.
      */
-    def continueWith[S](cont: Future[T] => S): Future[S] = Future(cont(f))
+    def continueWith[S](cont: Future[T] => S): Future[S] = {
+      val p = Promise[S]
+      f.onComplete(a => p.completeWith(Future(cont(f))))
+      p.future
+    }
 
     /** Continues the computation of this future by taking the result
      *  of the current future and mapping it into another future.
@@ -103,7 +107,11 @@ package object nodescala {
      *  The function `cont` is called only after the current future completes.
      *  The resulting future contains a value returned by `cont`.
      */
-    def continue[S](cont: Try[T] => S): Future[S] = Future(cont(f.value.get))
+    def continue[S](cont: Try[T] => S): Future[S] = {
+      val p = Promise[S]
+      f.onComplete(a => p.complete(Try(cont(f.value.get))))
+      p.future
+    }
 
   }
 
